@@ -98,6 +98,14 @@
         .modifyBtn:hover {
             background-color: #37992d;
         }
+        .copyright {
+            position: absolute;
+            bottom: 0;
+            left:50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
@@ -140,6 +148,9 @@
         <input id="input_playerColor" type="text" value="#333333">
         <button class="modifyBtn">Modify</button>
     </div>
+</div>
+<div class="copyright">
+    © 2024 <a href="https://github.com/ZJamss">ZJamss</a>. All rights reserved.
 </div>
 <script>
     const map = document.getElementById('map');
