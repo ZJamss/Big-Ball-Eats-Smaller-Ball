@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Big Ball Eats Smaller Balls</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            font-family: "Arial Black", serif;
+        }
+
+        html {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        #map {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #eee;
+        }
+
+        .ball {
+            position: absolute;
+            border-radius: 50%;
+            background-color: #333;
+            transition: transform 0.1s;
+        }
+
+        .buttons {
+            z-index: 999;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+
+        .bigBtn {
+            display: block;
+            margin: 10px auto;
+            min-width: 150px;
+            height: 40px;
+            border-radius: 5px;
+            border: 0;
+            background-color: #398CEE;
+            color: white;
+            font-weight: bold;
+            padding: 5px;
+        }
+
+        .bigBtn:hover {
+            background-color: #3c81cf;
+            transition: 0.2s;
+        }
+
+        #settings {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 999;
+            display: none;
+        }
+
+        label {
+            display: block;
+            font-size: 15px;
+            margin: 10px 0;
+        }
+
+        input {
+            text-decoration: none;
+            border: 0;
+            border-radius: 5px;
+            padding: 10px;
+            outline: none;
+            font-weight: bold;
+        }
+
+        input:hover, input:focus {
+            background-color: rgb(244, 241, 241);
+        }
+
+        .modifyBtn {
+            border-radius: 5px;
+            border: 0;
+            background-color: #40b235;
+            color: white;
+            font-weight: bold;
+            padding: 5px;
+        }
+
+        .modifyBtn:hover {
+            background-color: #37992d;
+        }
+    </style>
+</head>
+<body>
+<!--地图-->
+<div id="map">
+
+    <div class="buttons">
+        <button id="resetBtn" class="bigBtn">RESET GAME</button>
+        <button id="settingsBtn" class="bigBtn">SETTINGS</button>
+    </div>
+
+    <div id="settings">
+        <label for="input_step">
+            Player Move Step
+        </label>
+        <input id="input_step" type="number" value="5">
+        <button class="modifyBtn">Modify</button>
+
+        <label for="input_sizeCoefficient">
+            Ball Size Coefficient
+        </label>
+        <input id="input_sizeCoefficient" type="number" value="80">
+        <button class="modifyBtn">Modify</button>
+
+        <label for="input_growthCoefficient">
+            Player Growth Coefficient
+        </label>
+        <input id="input_growthCoefficient" type="number" value="0.1">
+        <button class="modifyBtn">Modify</button>
+
+        <label for="input_ballCount">
+            Ball Count
+        </label>
+        <input id="input_ballCount" type="number" value="200">
+        <button class="modifyBtn">Modify</button>
+
+        <label for="input_playerColor">
+            Player Color
+        </label>
+        <input id="input_playerColor" type="text" value="#333333">
+        <button class="modifyBtn">Modify</button>
+    </div>
+</div>
+<script>
+    const map = document.getElementById('map');
+    const player = generatePlayer()
+
+    // 参数
+    // 单词移动步数
+    let step = 5;
+    // 生成小球大小系数
+    let sizeCoefficient = 80;
+    // player成长系数
+    let growthCoefficient = 0.1;
+    // 小球数量
+    let ballCount = 200;
+    // player颜色
+    const playerBallColor = '#333333'
+
+    // 移动事件
+    let keys = {};
+    // 小球数组
+    let balls = [];
+    // 最新时间
+    let lastTime = 0;
+    // 动画id
+    let animationId;
+
+    // 设置可见性
+    let settingsVisible = false;
+
+    initGame()
+
+    // 初始化游戏
+    function initGame() {
+        document.onkeydown = function (event) {
+            keys[event.key.toLowerCase()] = true;
+        };
+
+        document.onkeyup = function (event) {
+            keys[event.key.toLowerCase()] = false;
+        };
+
+        document.getElementById('resetBtn').onclick = function (event) {
+            resetGame()
+        }
+
+        document.getElementById('settingsBtn').onclick = function (event) {
+            document.getElementById('settings').style.display = settingsVisible ? 'none' : 'block';
+            settingsVisible = !settingsVisible;
+        }
+
+        document.querySelectorAll('.modifyBtn').forEach((button, index) => {
+            button.addEventListener('click', () => {
+                const input = button.previousElementSibling;
+                const inputId = input.id;
+                const value = parseFloat(input.value);
+
+                switch (inputId) {
+                    case 'input_step':
+                        step = value;
+                        break;
+                    case 'input_sizeCoefficient':
+                        sizeCoefficient = value;
+                        break;
+                    case 'input_growthCoefficient':
+                        growthCoefficient = value;
+                        break;
+                    case 'input_ballCount':
+                        ballCount = value;
+                        break;
+                    case 'input_playerColor':
+                        player.style.backgroundColor = input.value;
+                        break;
+                }
+            });
+        });
+
+        requestAnimationFrame(movePlayer);
+        createBalls()
+    }
+
+
+    // 生成玩家小球
+    function generatePlayer() {
+        const player = document.createElement('div');
+        player.classList.add('ball');
+        player.id = 'player'
+        player.style.width = '50px';
+        player.style.height = '50px';
+        player.style.borderRadius = '50%';
+        player.style.backgroundColor = '#333';
+        player.style.position = 'absolute';
+        player.style.zIndex = '998';
+        player.style.left = '50%';
+        player.style.top = '50%';
+        player.style.transform = 'translate(-50%, -50%)';
+        map.appendChild(player);
+        return player;
+    }
+
+    // 小球移动事件
+    function movePlayer(timestamp) {
+        if (lastTime === 0) {
+            lastTime = timestamp;
+        }
+        const deltaTime = timestamp - lastTime;
+
+        // 60帧
+        if (deltaTime >= 16) {
+            let x = player.offsetLeft;
+            let y = player.offsetTop;
+
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const playerWidth = player.offsetWidth;
+            const playerHeight = player.offsetHeight;
+            const r = player.getBoundingClientRect().width / 2;
+
+            if (keys['w']) {
+                player.style.top = (y - step <= r) ? r + 'px' : y - step + 'px';
+            }
+            if (keys['a']) {
+                player.style.left = (x - step <= r) ? r + 'px' : x - step + 'px';
+            }
+            if (keys['s']) {
+                player.style.top = (y + step + playerHeight - r >= windowHeight) ? (windowHeight - r) + 'px' : y + step + 'px';
+            }
+            if (keys['d']) {
+                player.style.left = (x + step + playerWidth - r >= windowWidth) ? (windowWidth - r) + 'px' : x + step + 'px';
+            }
+            lastTime = timestamp;
+        }
+
+        // 判断小球是否接触
+        for (let i = 0; i < balls.length; i++) {
+            if (balls[i].parentElement && overlap(player, balls[i])) {
+                const playerSize = parseInt(player.style.width);
+                const ballSize = parseInt(balls[i].style.width);
+                if (playerSize > ballSize) {
+                    balls[i].remove();
+                    balls.splice(i, 1);
+                    const growth = ballSize * growthCoefficient;
+                    player.style.width = playerSize + growth + 'px';
+                    player.style.height = playerSize + growth + 'px';
+                } else {
+                    alert("Game Over");
+                    resetGame()
+                    return;
+                }
+            }
+        }
+
+        requestAnimationFrame(movePlayer);
+    }
+
+    // 创建小球
+    function createBalls() {
+        for (let i = 0; i < ballCount; i++) {
+            const ball = document.createElement('div');
+            ball.classList.add('ball');
+            const size = Math.floor(Math.random() * sizeCoefficient);
+            ball.style.width = size + 'px';
+            ball.style.height = size + 'px';
+            ball.style.backgroundColor = getRandomColor();
+            ball.style.left = Math.random() * (map.offsetWidth - size) + 'px';
+            ball.style.top = Math.random() * (map.offsetHeight - size) + 'px';
+
+            map.appendChild(ball);
+
+            // 判断生成的小球是否与player重叠
+            if (overlap(ball, player)) {
+                i -= 1;
+                map.removeChild(ball)
+                continue;
+            }
+
+            balls.push(ball);
+        }
+    }
+
+    // 判断两个小球之间是否重叠
+    function overlap(ball, other) {
+        const otherRect = other.getBoundingClientRect();
+        const otherX = otherRect.left + otherRect.width / 2;
+        const otherY = otherRect.top + otherRect.height / 2;
+        const otherRadius = otherRect.width / 2;
+        const ballRect = ball.getBoundingClientRect();
+        const ballRadius = ballRect.width / 2;
+        const ballX = ballRect.left + ballRadius;
+        const ballY = ballRect.top + ballRadius;
+
+        const distance = Math.sqrt(Math.pow(otherX - ballX, 2) + Math.pow(otherY - ballY, 2));
+        return distance <= (otherRadius + ballRadius);
+    }
+
+    // 获取随机颜色
+    function getRandomColor() {
+        const letters = "0123456789ABCDEF"
+        let color = "#"
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+            if (i === 5 && color === playerBallColor) {
+                i = 0;
+                color = '#'
+            }
+        }
+        return color;
+    }
+
+    // 重置游戏
+    function resetGame() {
+        // 取消之前的动画帧
+        cancelAnimationFrame(animationId);
+
+        player.style.transition = 'none';
+        player.style.animation = 'none';
+
+        for (const ball of balls) {
+            ball.remove();
+        }
+
+        player.style.left = '50%';
+        player.style.top = '50%';
+        player.style.width = '50px';
+        player.style.height = '50px';
+
+        balls = [];
+        keys = {}
+        createBalls();
+
+        document.onkeydown = function (event) {
+            keys[event.key.toLowerCase()] = true;
+        };
+        document.onkeyup = function (event) {
+            keys[event.key.toLowerCase()] = false;
+        };
+
+        // 重置时间戳并重新开始动画帧
+        lastTime = 0;
+        animationId = requestAnimationFrame(movePlayer);
+    }
+</script>
+</body>
+</html>
